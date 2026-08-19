@@ -1,0 +1,25 @@
+KNUST E-Learning Centre Navigation Guide
+
+How to access the E-Learning platform?
+Visit the KNUST E-Learning portal at elearn.knust.edu.gh and log in with your student ID and password provided during registration.
+
+What courses are available on the E-Learning platform?
+The platform hosts a wide range of undergraduate and postgraduate courses across all colleges, including lecture notes, assignments, and discussion forums.
+
+Is technical support available for the E-Learning platform?
+Yes, technical support is available via email at support@elearn.knust.edu.gh or by calling the ICT Help Desk at +233 3220 61111.
+
+How do I submit assignments online?
+Assignments can be submitted through the 'Assignments' section of each course on the E-Learning platform. Follow the instructions provided by your lecturer.
+
+Can I access the E-Learning platform on mobile devices?
+Yes, the platform is mobile-friendly and can be accessed via any modern web browser on smartphones and tablets.
+
+Are there any fees for using the E-Learning platform?
+Access to the E-Learning platform is included in your tuition fees. There are no additional charges for regular use.
+
+What should I do if I forget my password?
+Use the 'Forgot Password' link on the login page or contact the ICT Help Desk for assistance resetting your credentials.
+
+Is there a tutorial for new users?
+Yes, a user guide and video tutorials are available on the dashboard after logging in, and on the KNUST ICT Directorate website.

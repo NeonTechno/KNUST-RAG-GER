@@ -1,0 +1,13 @@
+[project]
+name = "knust-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.141.1",
+    "numpy>=2.5.2",
+    "openai>=2.16.0",
+    "scikit-learn>=1.9.0",
+    "uvicorn>=0.47.0",
+]
