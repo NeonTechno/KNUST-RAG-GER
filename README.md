@@ -5,7 +5,7 @@ This is a 3-week MVP for a text-only chatbot that answers admissions and navigat
 ## Project Structure
 
 - `backend/`: FastAPI application
-  - `main.py`: The backend API with RAG pipeline using NVIDIA Nemotron model and ChromaDB
+  - `main.py`: The backend API with RAG pipeline using Meta model from build.nvidia.com and ChromaDB
   - `data/`: Directory containing source documents (text files)
 - `frontend/`: Simple HTML/JavaScript chat interface
 - `test_rag.py`: Script to test the backend with sample questions
@@ -21,10 +21,11 @@ This is a 3-week MVP for a text-only chatbot that answers admissions and navigat
    ```
    Note: The project uses `uv` for dependency management.
 
-2. Set your NVIDIA API key for the Meta model from build.nvidia.com:
+2. Set your environment variables (copy from .env or set directly):
    ```bash
-   export NVIDIA_API_KEY=your_key_here   # Get from https://build.nvidia.com/
-   export NVIDIA_BASE_URL="https://integrate.api.nvidia.com/v1"  # default
+   export model="meta/muse-glimmer-30b"   # or whatever model is in .env
+   export base_url="https://integrate.api.nvidia.com/v1"
+   export META_NVIDIA_KEY="your_key_here"   # Get from https://build.nvidia.com/
    ```
 
 3. Start the server:
@@ -40,7 +41,7 @@ Open `frontend/index.html` in a web browser. It is configured to talk to `http:/
 
 - **Backend**: FastAPI for simplicity and performance.
 - **Vector Storage**: ChromaDB for persistent storage of document embeddings.
-- **Embedding Model**: Meta's Nemotron-3-Super model via NVIDIA NIM (build.nvidia.com).
+- **Embedding Model**: Meta model from build.nvidia.com (specified in .env).
 - **LLM**: Same Meta model for generation (can be swapped).
 - **Frontend**: A minimal HTML page with vanilla JavaScript to keep the setup simple.
 - **CORS**: Enabled to allow the frontend to call the backend from a different origin.
@@ -54,7 +55,7 @@ Open `frontend/index.html` in a web browser. It is configured to talk to `http:/
 
 ## Future Enhancements
 
-- Replace dummy embeddings with real NVIDIA Nemotron embeddings (already done).
+- Replace dummy embeddings with real Meta model embeddings (already done).
 - Improve chunking strategy (e.g., sliding window, semantic chunking).
 - Add a proper Next.js frontend with Tailwind styling.
 - Deploy to Vercel (frontend) and Render (backend) as per the original plan.
