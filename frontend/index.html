@@ -6,76 +6,133 @@
     <title>KNUST E-Learning Centre AI Assistant</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: #f8f9fa;
         }
         .chat-container {
             max-width: 600px;
             margin: 0 auto;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 80vh;
+            height: 85vh;
         }
         .chat-header {
-            background: #0066cc;
+            background: #003366; /* KNUST blue */
             color: white;
-            padding: 15px;
+            padding: 20px;
             text-align: center;
+        }
+        .chat-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .chat-header p {
+            margin: 5px 0 0;
+            opacity: 0.9;
         }
         .chat-messages {
             flex: 1;
-            padding: 15px;
+            padding: 20px;
             overflow-y: auto;
         }
         .message {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 15px;
+            margin-bottom: 15px;
             max-width: 80%;
+            word-wrap: break-word;
         }
         .user-message {
-            background: #0066cc;
+            background: #003366;
             color: white;
             margin-left: auto;
+            border-radius: 18px 18px 4px 18px;
+            padding: 12px 16px;
         }
         .bot-message {
             background: #e9ecef;
             color: #333;
+            border-radius: 18px 18px 18px 4px;
+            padding: 12px 16px;
         }
         .chat-input {
             display: flex;
-            padding: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 15px;
             border-top: 1px solid #eee;
+            background: #f8f9fa;
         }
-        .chat-input input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 20px;
+        .chat-input input[type="text"] {
+            flex: 1 1 200px;
+            min-width: 150px;
+            padding: 12px 16px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
             outline: none;
+            font-size: 1rem;
+        }
+        .chat-input input[type="text"]:focus {
+            border-color: #003366;
         }
         .chat-input button {
-            margin-left: 10px;
-            padding: 10px 20px;
-            background: #0066cc;
-            color: white;
+            padding: 12px 20px;
             border: none;
-            border-radius: 20px;
+            border-radius: 25px;
             cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .chat-input button:hover {
-            background: #0052a3;
+            opacity: 0.9;
         }
+        .btn-send {
+            background: #003366;
+            color: white;
+        }
+        .btn-voice {
+            background: #28a745;
+            color: white;
+        }
+        .btn-image {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-file {
+            background: #6f42c1;
+            color: white;
+        }
+        .btn-send:hover { background: #00284d; }
+        .btn-voice:hover { background: #218838; }
+        .btn-image:hover { background: #e0a800; }
+        .btn-file:hover { background: #5a32a3; }
         .sources {
-            font-size: 0.8em;
-            color: #666;
-            margin-top: 5px;
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        /* Hidden file inputs */
+        #imageInput, #fileInput {
+            display: none;
+        }
+        /* Responsive */
+        @media (max-width: 480px) {
+            .chat-input {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .chat-input input[type="text"],
+            .chat-input button {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -90,7 +147,18 @@
         </div>
         <div class="chat-input">
             <input type="text" id="userInput" placeholder="Type your question..." />
-            <button id="sendButton">Send</button>
+            <button id="sendButton" class="btn-send">Send</button>
+            <button id="voiceButton" class="btn-voice" title="Voice Input">
+                🎤
+            </button>
+            <button id="imageButton" class="btn-image" title="Upload Image">
+                🖼️
+            </button>
+            <button id="fileButton" class="btn-file" title="Upload File">
+                📎
+            </button>
+            <input type="file" id="imageInput" accept="image/*" />
+            <input type="file" id="fileInput" />
         </div>
     </div>
 
@@ -98,6 +166,11 @@
         const chatMessages = document.getElementById('chatMessages');
         const userInput = document.getElementById('userInput');
         const sendButton = document.getElementById('sendButton');
+        const voiceButton = document.getElementById('voiceButton');
+        const imageButton = document.getElementById('imageButton');
+        const fileButton = document.getElementById('fileButton');
+        const imageInput = document.getElementById('imageInput');
+        const fileInput = document.getElementById('fileInput');
 
         // Add a message to the chat
         function addMessage(content, isUser = false) {
@@ -133,8 +206,7 @@
             // Add user message
             addMessage(question, true);
             userInput.value = '';
-            userInput.disabled = true;
-            sendButton.disabled = true;
+            setInputState(false);
 
             try {
                 const response = await fetch('http://localhost:8000/query', {
@@ -158,10 +230,17 @@
                 console.error('Error:', error);
                 addBotMessage('Sorry, I encountered an error. Please try again.');
             } finally {
-                userInput.disabled = false;
-                sendButton.disabled = false;
+                setInputState(true);
                 userInput.focus();
             }
+        }
+
+        function setInputState(enabled) {
+            userInput.disabled = !enabled;
+            sendButton.disabled = !enabled;
+            voiceButton.disabled = !enabled;
+            imageButton.disabled = !enabled;
+            fileButton.disabled = !enabled;
         }
 
         // Event listeners
@@ -170,6 +249,69 @@
             if (e.key === 'Enter') {
                 sendMessage();
             }
+        });
+
+        // Voice input (Web Speech API)
+        voiceButton.addEventListener('click', () => {
+            if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+                addBotMessage('Speech recognition is not supported in this browser.');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            voiceButton.style.background = '#0056b3';
+            voiceButton.disabled = true;
+
+            recognition.start();
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userInput.value = transcript;
+                voiceButton.style.background = '#28a745';
+                voiceButton.disabled = false;
+                // Optionally auto-send
+                // sendMessage();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error', event.error);
+                voiceButton.style.background = '#28a745';
+                voiceButton.disabled = false;
+                addBotMessage('Sorry, there was an error with speech recognition.');
+            };
+
+            recognition.onend = () => {
+                voiceButton.style.background = '#28a745';
+                voiceButton.disabled = false;
+            };
+        });
+
+        // Image input
+        imageButton.addEventListener('click', () => {
+            imageInput.click();
+        });
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            // For simplicity, we just notify user; actual image processing would need backend
+            addBotMessage(`Image received: ${file.name}. Image understanding requires backend integration.`);
+            // Reset input
+            e.target.value = '';
+        });
+
+        // File input
+        fileButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            addBotMessage(`File received: ${file.name}. File processing requires backend integration.`);
+            e.target.value = '';
         });
 
         // Initial bot message
