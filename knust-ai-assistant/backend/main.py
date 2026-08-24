@@ -5,11 +5,21 @@ import uvicorn
 import os
 import json
 from openai import OpenAI
-import chromadb
-from chromadb.config import Settings
+import sys
+print("Python executable:", sys.executable)
+print("Sys path:", sys.path)
+try:
+    import chromadb
+    print("ChromaDB imported successfully, version:", chromadb.__version__)
+except ImportError as e:
+    print("Failed to import chromadb:", e)
+    # Try to print the site-packages
+    import site
+    print("Site-packages:", site.getsitepackages())
+    raise
+from chromadb.utils.embedding_functions import ChromaCloudQwenEmbeddingFunction
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 app = FastAPI()
@@ -42,29 +52,48 @@ def load_openai_client():
 
 def init_chromadb():
     global chroma_client, collection
-    chroma_client = chromadb.PersistentClient(path="./chroma_db")
-    # Get or create collection
-    collection = chroma_client.get_or_create_collection(name="knust_docs")
+    # Initialize Chroma Cloud client
+    chroma_client = chromadb.CloudClient(
+        api_key=os.getenv("CHROMA_API_KEY"),
+        tenant=os.getenv("CHROMA_TENANT"),
+        database=os.getenv("CHROMA_DATABASE")
+    )
+    
+    # Set up embedding function for dense search (Qwen)
+    dense_ef = ChromaCloudQwenEmbeddingFunction(
+        model=chromadb.utils.embedding_functions.chroma_cloud_qwen_embedding_function.ChromaCloudQwenEmbeddingModel.QWEN3_EMBEDDING_0p6B,
+        task=None,
+        api_key_env_var="CHROMA_API_KEY"
+    )
+    
+    # Get or create collection with dense embedding function
+    collection = chroma_client.get_or_create_collection(
+        name="knust_docs",
+        embedding_function=dense_ef
+    )
 
 def load_and_chunk_documents(data_dir: str = "../data"):
-    """Load text files, split into chunks, compute embeddings, and store in ChromaDB."""
-    global collection, openai_client
-    # Ensure we have embedding client
-    if openai_client is None:
-        openai_client = load_openai_client()
-        if openai_client is None:
-            print("Warning: No LLM client, will not compute embeddings.")
-            return
-
-    # Get model name from environment
-    model_name = os.getenv("model", "nvidia/nemotron-3-super-120b-a12b")
+    """Load text files, split into chunks, and store in ChromaDB Cloud.
+    Embeddings are computed automatically by Chroma Cloud using the embedding function.
+    """
+    global collection
+    # Ensure we have the collection
+    if collection is None:
+        init_chromadb()
     
     # Clear existing collection (for simplicity in MVP)
     try:
         chroma_client.delete_collection(name="knust_docs")
     except:
         pass
-    collection = chroma_client.get_or_create_collection(name="knust_docs")
+    collection = chroma_client.get_or_create_collection(
+        name="knust_docs",
+        embedding_function=ChromaCloudQwenEmbeddingFunction(
+            model=chromadb.utils.embedding_functions.chroma_cloud_qwen_embedding_function.ChromaCloudQwenEmbeddingModel.QWEN3_EMBEDDING_0p6B,
+            task=None,
+            api_key_env_var="CHROMA_API_KEY"
+        )
+    )
 
     chunks = []
     metadatas = []
@@ -74,7 +103,7 @@ def load_and_chunk_documents(data_dir: str = "../data"):
         if filename.endswith(".txt") or filename.endswith(".md"):
             with open(os.path.join(data_dir, filename), 'r', encoding='utf-8') as f:
                 content = f.read()
-                paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+                paragraphs = [p.strip() for p in content.split('\\n\\n') if p.strip()]
                 for para in paragraphs:
                     chunks.append(para)
                     metadatas.append({"source": f"{filename}#para{idx}"})
@@ -85,46 +114,22 @@ def load_and_chunk_documents(data_dir: str = "../data"):
         metadatas = [{"source": "dummy"}]
         ids = ["dummy_0"]
 
-    # Compute embeddings using NVIDIA model
-    print(f"Computing embeddings for {len(chunks)} chunks using model {model_name}...")
-    embeddings = []
-    batch_size = 16
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i:i+batch_size]
-        resp = openai_client.embeddings.create(
-            model=model_name,
-            input=batch
-        )
-        batch_emb = [item.embedding for item in resp.data]
-        embeddings.extend(batch_emb)
-    # Add to ChromaDB
+    # Add to ChromaDB Cloud - embeddings computed automatically
     collection.add(
-        embeddings=embeddings,
         documents=chunks,
         metadatas=metadatas,
         ids=ids
     )
-    print(f"Stored {len(chunks)} chunks in ChromaDB.")
+    print(f"Stored {len(chunks)} chunks in ChromaDB Cloud.")
 
 def retrieve_relevant_chunks(query: str, top_k: int = 3):
-    global collection, openai_client
+    global collection
     if collection is None:
         return [], []
-    if openai_client is None:
-        openai_client = load_openai_client()
-        if openai_client is None:
-            return [], []
-    # Get model name from environment
-    model_name = os.getenv("model", "nvidia/nemotron-3-super-120b-a12b")
-    # Compute query embedding
-    resp = openai_client.embeddings.create(
-        model=model_name,
-        input=[query]
-    )
-    query_emb = resp.data[0].embedding
+    # Query using text - Chroma Cloud will compute embeddings automatically
     results = collection.query(
-        query_embeddings=[query_emb],
-        n_neighbors=top_k,
+        query_texts=[query],
+        n_results=top_k,
         include=["documents", "metadatas"]
     )
     docs = results.get("documents", [[]])[0]
@@ -144,7 +149,7 @@ async def query(request: QueryRequest):
         relevant_chunks, sources = retrieve_relevant_chunks(request.question, request.top_k)
         if not relevant_chunks:
             return QueryResponse(answer="I don't know / that's outside what I can help with.", sources=[])
-        context = "\n\n".join(relevant_chunks)
+        context = "\\n\\n".join(relevant_chunks)
         prompt = f"""You are a helpful assistant for the KNUST E-Learning Centre.
 Answer the user's question based only on the following context:
 
@@ -154,10 +159,11 @@ Question: {request.question}
 
 Answer:"""
         # Use OpenAI client for completion
+        global openai_client
         if openai_client is None:
             openai_client = load_openai_client()
-            if openai_client is None:
-                answer = f"Based on the information: {context[:500]}..."
+        if openai_client is None:
+            answer = f"Based on the information: {context[:500]}..."
         else:
             model_name = os.getenv("model", "nvidia/nemotron-3-super-120b-a12b")
             resp = openai_client.chat.completions.create(
