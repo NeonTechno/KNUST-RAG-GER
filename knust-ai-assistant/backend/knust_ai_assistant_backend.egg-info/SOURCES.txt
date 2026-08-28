@@ -1,0 +1,7 @@
+main.py
+pyproject.toml
+knust_ai_assistant_backend.egg-info/PKG-INFO
+knust_ai_assistant_backend.egg-info/SOURCES.txt
+knust_ai_assistant_backend.egg-info/dependency_links.txt
+knust_ai_assistant_backend.egg-info/requires.txt
+knust_ai_assistant_backend.egg-info/top_level.txt

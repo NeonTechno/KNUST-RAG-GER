@@ -26,6 +26,25 @@
             background: #003366; /* KNUST blue */
             color: white;
             padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+        .chat-header img.logo {
+            height: 40px;
+            width: auto;
+        }
+        .chat-header img.banner {
+            max-width: 200px;
+            height: auto;
+            display: block;
+            margin: 10px 0;
+        }
+        .chat-header div {
             text-align: center;
         }
         .chat-header h1 {
@@ -139,8 +158,14 @@
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h1>KNUST E-Learning Centre AI Assistant</h1>
-            <p>Ask me about admissions and navigation</p>
+            <div class="header-content">
+                <img src="knustlogo.png" alt="KNUST Logo" class="logo">
+                <img src="aboutknustimg.jpg" alt="KNUST Campus" class="banner">
+                <div>
+                    <h1>KNUST E-Learning Centre AI Assistant</h1>
+                    <p>Ask me about admissions and navigation</p>
+                </div>
+            </div>
         </div>
         <div class="chat-messages" id="chatMessages">
             <!-- Messages will be added here -->
@@ -148,6 +173,7 @@
         <div class="chat-input">
             <input type="text" id="userInput" placeholder="Type your question..." />
             <button id="sendButton" class="btn-send">Send</button>
+            <button id="clearButton" class="btn-send" style="background: #dc3545;">Clear Chat</button>
             <button id="voiceButton" class="btn-voice" title="Voice Input">
                 🎤
             </button>
@@ -159,6 +185,7 @@
             </button>
             <input type="file" id="imageInput" accept="image/*" />
             <input type="file" id="fileInput" />
+            <div id="loadingIndicator" style="display: none; color: #003366; font-weight: bold;">Thinking...</div>
         </div>
     </div>
 
@@ -182,18 +209,47 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // Add a bot message with sources
+        // Add a bot message with sources and copy button
         function addBotMessage(answer, sources) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message');
             messageDiv.classList.add('bot-message');
-            messageDiv.innerHTML = `<p>${answer}</p>`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = `<p>${answer}</p>`;
+
             if (sources && sources.length > 0) {
                 const sourcesDiv = document.createElement('div');
                 sourcesDiv.classList.add('sources');
                 sourcesDiv.textContent = 'Sources: ' + sources.join(', ');
-                messageDiv.appendChild(sourcesDiv);
+                contentDiv.appendChild(sourcesDiv);
             }
+
+            // Add copy button
+            const copyButton = document.createElement('button');
+            copyButton.textContent = 'Copy';
+            copyButton.classList.add('btn-copy');
+            copyButton.style.marginLeft = '10px';
+            copyButton.style.padding = '4px 8px';
+            copyButton.style.fontSize = '0.8rem';
+            copyButton.style.borderRadius = '12px';
+            copyButton.style.border = '1px solid #ccc';
+            copyButton.style.backgroundColor = '#f8f9fa';
+            copyButton.style.cursor = 'pointer';
+            copyButton.onclick = () => {
+                navigator.clipboard.writeText(answer).then(() => {
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyButton.textContent = 'Copy';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                    copyButton.textContent = 'Error';
+                });
+            };
+
+            contentDiv.appendChild(copyButton);
+            messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
@@ -207,12 +263,14 @@
             addMessage(question, true);
             userInput.value = '';
             setInputState(false);
+            showLoadingIndicator(true);
 
             try {
                 const response = await fetch('http://localhost:8000/query', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer testkey'
                     },
                     body: JSON.stringify({
                         question: question,
@@ -231,6 +289,7 @@
                 addBotMessage('Sorry, I encountered an error. Please try again.');
             } finally {
                 setInputState(true);
+                showLoadingIndicator(false);
                 userInput.focus();
             }
         }
@@ -238,13 +297,30 @@
         function setInputState(enabled) {
             userInput.disabled = !enabled;
             sendButton.disabled = !enabled;
+            clearButton.disabled = !enabled;
             voiceButton.disabled = !enabled;
             imageButton.disabled = !enabled;
             fileButton.disabled = !enabled;
         }
 
+        function showLoadingIndicator(show) {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            if (show) {
+                loadingIndicator.style.display = 'block';
+            } else {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        function clearChat() {
+            chatMessages.innerHTML = '';
+            // Add initial bot message back
+            addBotMessage('Hello! I am the KNUST E-Learning Centre AI Assistant. How can I help you today?');
+        }
+
         // Event listeners
         sendButton.addEventListener('click', sendMessage);
+        clearButton.addEventListener('click', clearChat);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();

@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: knust-ai-assistant-backend
+Version: 0.1.0
+Summary: Backend for KNUST E-Learning Centre AI Assistant
+Requires-Dist: fastapi
+Requires-Dist: uvicorn
+Requires-Dist: openai
+Requires-Dist: chromadb
+Requires-Dist: python-dotenv
+Requires-Dist: scikit-learn
+Requires-Dist: numpy

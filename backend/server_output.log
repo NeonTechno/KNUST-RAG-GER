@@ -1,0 +1,47 @@
+/Users/user/KNUST-Intern-Proj/backend/main.py:180: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+INFO:     Started server process [33192]
+INFO:     Waiting for application startup.
+2026-08-26 15:15:20.104 | INFO     | __main__:load_and_chunk_documents:146 - Computing embeddings for 20 chunks...
+2026-08-26 15:15:20.105 | INFO     | __main__:embed_texts:113 - Computing embeddings for 20 uncached texts
+ERROR:    Traceback (most recent call last):
+  File "/Users/user/KNUST-Intern-Proj/backend/.venv/lib/python3.14/site-packages/starlette/routing.py", line 648, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/user/KNUST-Intern-Proj/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 265, in __aenter__
+    await self._router._startup()
+  File "/Users/user/KNUST-Intern-Proj/backend/.venv/lib/python3.14/site-packages/fastapi/routing.py", line 6375, in _startup
+    await handler()
+  File "/Users/user/KNUST-Intern-Proj/backend/main.py", line 184, in startup_event
+    load_and_chunk_documents()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/user/KNUST-Intern-Proj/backend/main.py", line 147, in load_and_chunk_documents
+    embeddings = embed_texts(chunks)
+  File "/Users/user/KNUST-Intern-Proj/backend/main.py", line 114, in embed_texts
+    response = openai_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=uncached_texts
+    )
+  File "/Users/user/KNUST-Intern-Proj/backend/.venv/lib/python3.14/site-packages/openai/resources/embeddings.py", line 136, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/embeddings",
+        ^^^^^^^^^^^^^^
+    ...<9 lines>...
+        cast_to=CreateEmbeddingResponse,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/user/KNUST-Intern-Proj/backend/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1381, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/user/KNUST-Intern-Proj/backend/.venv/lib/python3.14/site-packages/openai/_base_client.py", line 1154, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.NotFoundError: 404 page not found
+
+ERROR:    Application startup failed. Exiting.

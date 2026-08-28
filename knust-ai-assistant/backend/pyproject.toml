@@ -1,0 +1,17 @@
+[project]
+name = "knust-ai-assistant-backend"
+version = "0.1.0"
+description = "Backend for KNUST E-Learning Centre AI Assistant"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "openai",
+    "chromadb",
+    "python-dotenv",
+    "scikit-learn",
+    "numpy"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
