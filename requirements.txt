@@ -1,0 +1,6 @@
+smolagents
+gradio
+sentence-transformers
+chromadb
+duckduckgo-search
+wikipedia
