@@ -1,70 +1,49 @@
 #!/usr/bin/env python3
 """
-KNUST FAQ Agent using SmolAgents, RAG with ChromaDB, and Gradio UI.
-Using a small model for quick testing.
+KNUST FAQ Agent using SmolAgents, simple keyword lookup, and Gradio UI.
 """
 
 import os
 import gradio as gr
 from smolagents import ToolCallingAgent, Tool, DuckDuckGoSearchTool, WikipediaSearchTool
-from sentence_transformers import SentenceTransformer
-import chromadb
-from chromadb.utils import embedding_functions
 
 # -------------------------
-# 1. Ingest KNUST FAQ into ChromaDB
+# 1. Load KNUST FAQ into memory
 # -------------------------
-def ingest_faq(faq_path: str = "knust_faq.txt"):
-    """Load FAQ text, split into chunks, embed, and store in ChromaDB."""
-    if not os.path.exists(faq_path):
+FAQ_PATH = "knust_faq.txt"
+
+def load_faq():
+    if not os.path.exists(FAQ_PATH):
         # Create a dummy FAQ if file missing
-        with open(faq_path, "w", encoding="utf-8") as f:
+        with open(FAQ_PATH, "w", encoding="utf-8") as f:
             f.write("""KNUST FAQ
 What is KNUST? Kwame Nkrumah University of Science and Technology.
 Where is KNUST located? Kumasi, Ghana.
 How to apply for admission? Visit the admissions portal.
 """)
-    with open(faq_path, "r", encoding="utf-8") as f:
+    with open(FAQ_PATH, "r", encoding="utf-8") as f:
         text = f.read()
     # Simple chunking by paragraphs
     chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
-    # Embedding function
-    embed_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name="all-MiniLM-L6-v2"
-    )
-    client = chromadb.Client()
-    try:
-        client.delete_collection("knust_faq")
-    except Exception:
-        pass
-    collection = client.create_collection(
-        name="knust_faq",
-        embedding_function=embed_fn,
-        metadata={"hnsw:space": "cosine"},
-    )
-    # Add chunks
-    ids = [f"chunk_{i}" for i in range(len(chunks))]
-    collection.add(documents=chunks, ids=ids)
-    return collection
+    return chunks
 
-# Initialize collection globally
-collection = ingest_faq()
+faq_chunks = load_faq()
 
 # -------------------------
 # 2. Define custom tools
 # -------------------------
 class DocumentLookupTool(Tool):
     name = "document_lookup"
-    description = "Lookup information in the KNUST FAQ store."
+    description = "Lookup information in the KNUST FAQ store using simple keyword match."
     inputs = {"question": {"type": "string", "description": "The question to ask."}}
     output_type = "string"
 
     def forward(self, question: str) -> str:
-        results = collection.query(query_texts=[question], n_results=3)
-        docs = results.get("documents", [[]])[0]
-        if not docs:
+        # Simple case-insensitive substring match
+        matches = [chunk for chunk in faq_chunks if question.lower() in chunk.lower()]
+        if not matches:
             return "No relevant information found in the FAQ."
-        return "\n\n---\n\n".join(docs)
+        return "\n\n---\n\n".join(matches[:3])  # return top 3 matches
 
 class CalculatorTool(Tool):
     name = "calculator"
@@ -106,8 +85,8 @@ def chat_fn(message, history):
     prompt = message
     # Optionally include history
     if history:
-        hist_text = "\n".join([f"User: {u}\nAssistant: {a}" for u, a in history])
-        prompt = f"{hist_text}\nUser: {message}"
+        hist_text = "\n".join([f"User: {u}\\nAssistant: {a}" for u, a in history])
+        prompt = f"{hist_text}\\nUser: {message}"
     response = agent.run(prompt)
     return response
 
