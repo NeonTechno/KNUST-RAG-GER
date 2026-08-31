@@ -120,3 +120,6 @@ demo = gr.ChatInterface(
 
 if __name__ == "__main__":
     demo.launch()
+else:
+    # For Vercel deployment, expose the Gradio app as a module-level variable.
+    app = demo
