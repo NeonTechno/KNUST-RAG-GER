@@ -1,103 +1,91 @@
 #!/usr/bin/env python3
-"""
-KNUST FAQ Agent using SmolAgents, simple keyword lookup, and Gradio UI.
-"""
+"""KNUST E-Learning Centre AI Assistant — Hugging Face Space entrypoint."""
 
-import os
+from pathlib import Path
+import re
 import gradio as gr
-from smolagents import ToolCallingAgent, Tool, DuckDuckGoSearchTool, WikipediaSearchTool
+from smolagents import CodeAgent, InferenceClientModel, Tool, DuckDuckGoSearchTool
 
-# -------------------------
-# 1. Load KNUST FAQ into memory
-# -------------------------
-FAQ_PATH = "knust_faq.txt"
+ROOT = Path(__file__).resolve().parent
+DATA_DIR = ROOT / "data"
 
-def load_faq():
-    if not os.path.exists(FAQ_PATH):
-        # Create a dummy FAQ if file missing
-        with open(FAQ_PATH, "w", encoding="utf-8") as f:
-            f.write("""KNUST FAQ
-What is KNUST? Kwame Nkrumah University of Science and Technology.
-Where is KNUST located? Kumasi, Ghana.
-How to apply for admission? Visit the admissions portal.
-""")
-    with open(FAQ_PATH, "r", encoding="utf-8") as f:
-        text = f.read()
-    # Simple chunking by paragraphs
-    chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
+def load_knowledge():
+    chunks = []
+    for path in sorted(DATA_DIR.glob("*.txt")):
+        text = path.read_text(encoding="utf-8")
+        for chunk in re.split(r"\n\s*\n", text):
+            chunk = chunk.strip()
+            if chunk:
+                chunks.append(f"[{path.name}]\n{chunk}")
     return chunks
 
-faq_chunks = load_faq()
+KNOWLEDGE = load_knowledge()
 
-# -------------------------
-# 2. Define custom tools
-# -------------------------
-class DocumentLookupTool(Tool):
-    name = "document_lookup"
-    description = "Lookup information in the KNUST FAQ store using simple keyword match."
-    inputs = {"question": {"type": "string", "description": "The question to ask."}}
+class KNUSTRetrievalTool(Tool):
+    name = "knust_knowledge_search"
+    description = (
+        "Search the local KNUST E-Learning Centre knowledge base for admissions, "
+        "fees, requirements, procedures, navigation and campus information."
+    )
+    inputs = {"query": {"type": "string", "description": "KNUST-related question or keywords."}}
     output_type = "string"
 
-    def forward(self, question: str) -> str:
-        # Simple case-insensitive substring match
-        matches = [chunk for chunk in faq_chunks if question.lower() in chunk.lower()]
-        if not matches:
-            return "No relevant information found in the FAQ."
-        return "\n\n---\n\n".join(matches[:3])  # return top 3 matches
+    def forward(self, query: str) -> str:
+        terms = {t.lower() for t in re.findall(r"[A-Za-z0-9']+", query) if len(t) > 2}
+        scored = []
+        for chunk in KNOWLEDGE:
+            haystack = chunk.lower()
+            score = sum(1 for term in terms if term in haystack)
+            if score:
+                scored.append((score, chunk))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        if not scored:
+            return "No directly relevant local KNUST information was found."
+        return "\n\n---\n\n".join(chunk for _, chunk in scored[:5])
 
-class CalculatorTool(Tool):
-    name = "calculator"
-    description = "A simple calculator for arithmetic expressions."
-    inputs = {"expression": {"type": "string", "description": "Math expression to evaluate."}}
-    output_type = "string"
+def build_agent():
+    model = InferenceClientModel(model_id="Qwen/Qwen2.5-7B-Instruct")
+    return CodeAgent(
+        model=model,
+        tools=[KNUSTRetrievalTool(), DuckDuckGoSearchTool()],
+        max_steps=6,
+    )
 
-    def forward(self, expression: str) -> str:
-        try:
-            # Safe eval: only allow numbers and basic operators
-            allowed = set("0123456789+-*/(). ")
-            if not set(expression) <= allowed:
-                return "Invalid expression."
-            result = eval(expression, {"__builtins__": {}}, {})
-            return str(result)
-        except Exception as e:
-            return f"Error: {e}"
+agent = build_agent()
 
-# -------------------------
-# 3. Initialize Agent with tools
-# -------------------------
-# Using a small model for quick testing
-agent = ToolCallingAgent(
-    model="sshle/tiny-distilbert-base-uncased-2",  # Small model from HF
-    tools=[
-        DuckDuckGoSearchTool(),
-        WikipediaSearchTool(),
-        DocumentLookupTool(),
-        CalculatorTool(),
-    ],
-    max_steps=5,
-)
-
-# -------------------------
-# 4. Gradio UI
-# -------------------------
 def chat_fn(message, history):
-    # Agent expects a prompt; we can pass conversation as a single string
-    prompt = message
-    # Optionally include history
-    if history:
-        hist_text = "\n".join([f"User: {u}\\nAssistant: {a}" for u, a in history])
-        prompt = f"{hist_text}\\nUser: {message}"
-    response = agent.run(prompt)
-    return response
+    history = history or []
+    previous = []
+    for item in history[-8:]:
+        if isinstance(item, dict):
+            role, content = item.get("role", ""), item.get("content", "")
+            if role in {"user", "assistant"} and isinstance(content, str):
+                previous.append(f"{role.title()}: {content}")
+        elif isinstance(item, (list, tuple)) and len(item) >= 2:
+            previous.append(f"User: {item[0]}\nAssistant: {item[1]}")
+    prompt = f"""You are the KNUST E-Learning Centre AI Assistant.
+Use knust_knowledge_search first for KNUST-specific questions.
+Use web search only when current public information is needed.
+Never invent admission dates, fees, requirements, links or university policies.
+If the knowledge base is insufficient, say so and direct the user to an official KNUST source.
+
+Conversation:
+{"\n".join(previous)}
+
+User:
+{message}
+"""
+    try:
+        return agent.run(prompt)
+    except Exception as exc:
+        return f"I’m temporarily unable to process that request. Please try again. ({type(exc).__name__})"
 
 demo = gr.ChatInterface(
     fn=chat_fn,
-    title="KNUST FAQ Agent",
-    description="Ask questions about KNUST or general knowledge.",
-    theme="soft",
+    title="KNUST E-Learning Centre AI Assistant",
+    description="Admissions, procedures and campus navigation assistant.",
+    theme=gr.themes.Soft(),
 )
 
-app = demo
-
 if __name__ == "__main__":
-    app.launch()
+    demo.launch()
