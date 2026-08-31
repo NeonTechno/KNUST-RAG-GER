@@ -1,90 +1,55 @@
-#!/usr/bin/env python3
-"""KNUST E-Learning Centre AI Assistant — Hugging Face Space entrypoint."""
-
-from pathlib import Path
 import re
+from pathlib import Path
 import gradio as gr
 from smolagents import CodeAgent, InferenceClientModel, Tool, DuckDuckGoSearchTool
 
-ROOT = Path(__file__).resolve().parent
-DATA_DIR = ROOT / "data"
+DATA = Path(__file__).parent / "data"
 
-def load_knowledge():
-    chunks = []
-    for path in sorted(DATA_DIR.glob("*.txt")):
-        text = path.read_text(encoding="utf-8")
-        for chunk in re.split(r"\n\s*\n", text):
-            chunk = chunk.strip()
-            if chunk:
-                chunks.append(f"[{path.name}]\n{chunk}")
-    return chunks
+def load_docs():
+    docs = []
+    for p in sorted(DATA.glob("*.txt")):
+        for part in re.split(r"\n\s*\n", p.read_text(encoding="utf-8")):
+            if part.strip():
+                docs.append(f"[{p.name}]\n{part.strip()}")
+    return docs
 
-KNOWLEDGE = load_knowledge()
+DOCS = load_docs()
 
-class KNUSTRetrievalTool(Tool):
+class KNUSTSearch(Tool):
     name = "knust_knowledge_search"
-    description = (
-        "Search the local KNUST E-Learning Centre knowledge base for admissions, "
-        "fees, requirements, procedures, navigation and campus information."
-    )
-    inputs = {"query": {"type": "string", "description": "KNUST-related question or keywords."}}
+    description = "Search the local KNUST admissions and campus knowledge base."
+    inputs = {"query": {"type": "string", "description": "KNUST question or keywords"}}
     output_type = "string"
 
-    def forward(self, query: str) -> str:
-        terms = {t.lower() for t in re.findall(r"[A-Za-z0-9']+", query) if len(t) > 2}
-        scored = []
-        for chunk in KNOWLEDGE:
-            haystack = chunk.lower()
-            score = sum(1 for term in terms if term in haystack)
+    def forward(self, query):
+        terms = {x.lower() for x in re.findall(r"[A-Za-z0-9']+", query) if len(x) > 2}
+        ranked = []
+        for doc in DOCS:
+            score = sum(t in doc.lower() for t in terms)
             if score:
-                scored.append((score, chunk))
-        scored.sort(key=lambda item: item[0], reverse=True)
-        if not scored:
-            return "No directly relevant local KNUST information was found."
-        return "\n\n---\n\n".join(chunk for _, chunk in scored[:5])
+                ranked.append((score, doc))
+        ranked.sort(reverse=True)
+        return "\n\n---\n\n".join(x[1] for x in ranked[:5]) or "No matching local information."
 
-def build_agent():
-    model = InferenceClientModel(model_id="Qwen/Qwen2.5-7B-Instruct")
-    return CodeAgent(
-        model=model,
-        tools=[KNUSTRetrievalTool(), DuckDuckGoSearchTool()],
-        max_steps=6,
-    )
+model = InferenceClientModel(model_id="Qwen/Qwen2.5-7B-Instruct")
+agent = CodeAgent(model=model, tools=[KNUSTSearch(), DuckDuckGoSearchTool()], max_steps=6)
 
-agent = build_agent()
-
-def chat_fn(message, history):
-    history = history or []
-    previous = []
-    for item in history[-8:]:
-        if isinstance(item, dict):
-            role, content = item.get("role", ""), item.get("content", "")
-            if role in {"user", "assistant"} and isinstance(content, str):
-                previous.append(f"{role.title()}: {content}")
-        elif isinstance(item, (list, tuple)) and len(item) >= 2:
-            previous.append(f"User: {item[0]}\nAssistant: {item[1]}")
+def chat(message, history):
     prompt = f"""You are the KNUST E-Learning Centre AI Assistant.
-Use knust_knowledge_search first for KNUST-specific questions.
-Use web search only when current public information is needed.
-Never invent admission dates, fees, requirements, links or university policies.
-If the knowledge base is insufficient, say so and direct the user to an official KNUST source.
+Use knust_knowledge_search first for KNUST questions. Use web search for current public facts.
+Do not invent university policies, fees, dates or requirements. If evidence is insufficient, say so.
 
-Conversation:
-{"\n".join(previous)}
-
-User:
-{message}
-"""
+Question: {message}"""
     try:
         return agent.run(prompt)
-    except Exception as exc:
-        return f"I’m temporarily unable to process that request. Please try again. ({type(exc).__name__})"
+    except Exception:
+        return "The AI assistant is temporarily unavailable. Please try again."
 
 demo = gr.ChatInterface(
-    fn=chat_fn,
+    fn=chat,
     title="KNUST E-Learning Centre AI Assistant",
-    description="Admissions, procedures and campus navigation assistant.",
-    theme=gr.themes.Soft(),
+    description="Ask about admissions, procedures and campus navigation.",
+    theme=gr.themes.Soft()
 )
 
 if __name__ == "__main__":
