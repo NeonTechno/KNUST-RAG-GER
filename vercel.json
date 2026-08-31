@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "agent_small.py",
+      "use": "@vercel/python",
+      "config": { "maxDuration": 300 }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "agent_small.py"
+    }
+  ]
+}
