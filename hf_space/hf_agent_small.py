@@ -4,7 +4,7 @@ import gradio as gr
 import os
 from huggingface_hub import InferenceClient
 
-DATA = Path(__file__).parent / "data"
+DATA = Path(__file__).parent.parent / "data"
 
 def load_docs():
     docs = []
