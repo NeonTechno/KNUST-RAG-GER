@@ -12,8 +12,8 @@ if "HF_TOKEN" not in os.environ:
     if hf_token:
         os.environ["HF_TOKEN"] = hf_token
 
-# Import the demo from agent_small
-from agent_small import demo
+# Import the demo from hf_agent_small
+from hf_agent_small import demo
 
 # For compatibility with HF Spaces that expect 'app' variable
 app = demo

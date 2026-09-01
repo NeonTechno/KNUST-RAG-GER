@@ -1,5 +1,5 @@
 # Ignore files not needed for Vercel deployment
-agent_small.py
+hf_agent_small.py
 test_hf_space.py
 backend/
 knust-ai-assistant/
