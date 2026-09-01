@@ -4,17 +4,5 @@
     "api/index.py": {
       "maxDuration": 60
     }
-  },
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "api/index.py"
-    }
-  ]
+  }
 }

@@ -1,22 +1,11 @@
 #!/usr/bin/env python3
 """
-Hugging Face Space entrypoint for KNUST RAG-GAR AI Agent.
-This serves as the main application file for the HF Space.
+Vercel entrypoint for KNUST RAG-GAR API.
+This file serves as the main application entrypoint for Vercel deployments.
 """
 
-import os
-# Set HF_TOKEN from Space secrets if available
-if "HF_TOKEN" not in os.environ:
-    # Try to get from Space environment variables
-    hf_token = os.environ.get("HF_TOKEN_FROM_SPACE") or os.environ.get("HUGGINGFACE_TOKEN")
-    if hf_token:
-        os.environ["HF_TOKEN"] = hf_token
+# Import the FastAPI app from api/index.py
+from api.index import app
 
-# Import the demo from agent_small
-from agent_small import demo
-
-# For compatibility with HF Spaces that expect 'app' variable
-app = demo
-
-if __name__ == "__main__":
-    demo.launch()
+# This makes the app available for Vercel's automatic detection
+# Vercel expects to find 'app' in the root app.py file
