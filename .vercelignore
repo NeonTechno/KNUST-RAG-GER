@@ -7,4 +7,3 @@ test_vercel_local.py
 test_rag.py
 deploy_verify.py
 hf_app.py
-app.py
