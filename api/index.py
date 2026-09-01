@@ -65,7 +65,7 @@ def chat(request: QueryRequest):
     if not token:
         return {"answer": context, "sources": sources, "mode": "retrieval-only"}
 
-    client = InferenceClient(token=token, model=os.getenv("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct"))
+    client = InferenceClient(token=token, model=os.getenv("HF_MODEL", "Qwen/Qwen2.5-7B-Instruct"), provider="auto")
     prompt = f"""You are the KNUST E-Learning Centre AI Assistant.
 Answer using the supplied KNUST knowledge only. Do not invent dates, fees, requirements, policies or links.
 If the context does not answer the question, say that the information is not available.
