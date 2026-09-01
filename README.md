@@ -248,3 +248,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Ready to assist with admissions and navigation questions for the KNUST E-Learning Centre!**# Deployment test
 # Trigger rebuild
+
+
+## Deployment
+
+Production frontend uses Next.js and the Vercel API at `/api/chat`.
