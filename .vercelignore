@@ -1,0 +1,9 @@
+# Ignore files not needed for Vercel deployment
+agent_small.py
+test_hf_space.py
+backend/
+knust-ai-assistant/
+test_vercel_local.py
+test_rag.py
+deploy_verify.py
+hf_app.py
